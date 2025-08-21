@@ -45,11 +45,13 @@ uvicorn main:app --reload
 | name      | str    | Customer name             |
 | balance   | float  | Current balance           |
 
-### payees #TODO: mention that this is not used
+### payees 
 | Column    | Type   | Description                |
 |-----------|--------|---------------------------|
 | id        | str    | Primary key (e.g., p_789) |
 | name      | str    | Payee name                |
+
+> Note: Payees table exists for completeness but is not used in the current demo flow.
 
 ### payments
 | Column          | Type   | Description                                  |
@@ -114,8 +116,8 @@ uvicorn main:app --reload
 ```
 
 ## What Was Optimized
-- **Latency:** Async endpoints, agent tool retries, minimal DB roundtrips(TODO)
-- **Simplicity:** In-memory rate limiter, event publisher for observability, clear agent trace, single-file run(TODO)
+- **Latency:** Async endpoints, agent tool retries, minimal DB roundtrips
+- **Simplicity:** In-memory rate limiter, event publisher for observability, clear agent trace, single-file run
 - **Security:** API key, PII redaction in logs, input validation
 
 ## Trade-offs
@@ -158,26 +160,28 @@ curl http://localhost:8000/metrics
 - Plan and tool calls shown in agentTrace
 - No external LLM required
 
+```text
 1. REQUEST RECEIVED
-   ↓
+  ↓
 2. IDEMPOTENCY CHECK
-   ├── READ payments (check if exists)
-   └── READ idempotency_keys (check if exists)
-   ↓
+  ├── READ payments (check if exists)
+  └── READ idempotency_keys (check if exists)
+  ↓
 3. IF NEW REQUEST:
-   ├── AGENT LOGIC
-   │   └── READ customers (get balance)
-   │
-   ├── DECISION MADE
-   │   └── UPDATE customers (if allow: deduct balance)
-   │
-   ├── STORE PAYMENT
-   │   └── INSERT payments
-   │
-   └── STORE IDEMPOTENCY
-       └── INSERT idempotency_keys
-   ↓
+  ├── AGENT LOGIC
+  │   └── READ customers (get balance)
+  │
+  ├── DECISION MADE
+  │   └── UPDATE customers (if allow: deduct balance)
+  │
+  ├── STORE PAYMENT
+  │   └── INSERT payments
+  │
+  └── STORE IDEMPOTENCY
+      └── INSERT idempotency_keys
+  ↓
 4. RESPONSE SENT
+```
 
 ## TODOs
 - [ ] Redis-backed rate limiter for distributed scale
