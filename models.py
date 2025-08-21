@@ -3,6 +3,9 @@ from sqlalchemy.orm import declarative_base
 from datetime import datetime, timezone
 import enum
 
+from pydantic import BaseModel
+from typing import List
+
 Base = declarative_base()
 
 
@@ -59,3 +62,22 @@ class IdempotencyKey(Base):
             'idempotency_key',
             name='_idempotency_uc'),
     )
+
+
+class PaymentRequest(BaseModel):
+    customerId: str
+    amount: float
+    currency: str
+    payeeId: str
+    idempotencyKey: str
+
+class AgentTraceStep(BaseModel):
+    step: str
+    detail: str
+
+class PaymentDecisionResponse(BaseModel):
+    decision: str  # allow | review | block
+    reasons: List[str]
+    user_display: List[str]
+    agentTrace: List[AgentTraceStep]
+    requestId: str

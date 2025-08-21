@@ -4,7 +4,7 @@
 ```sh
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt  # or pip install fastapi[all] sqlalchemy aiosqlite uvicorn pydantic
+pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
@@ -45,7 +45,7 @@ uvicorn main:app --reload
 | name      | str    | Customer name             |
 | balance   | float  | Current balance           |
 
-### payees
+### payees #TODO: mention that this is not used
 | Column    | Type   | Description                |
 |-----------|--------|---------------------------|
 | id        | str    | Primary key (e.g., p_789) |
@@ -114,13 +114,13 @@ uvicorn main:app --reload
 ```
 
 ## What Was Optimized
-- **Latency:** Async endpoints, agent tool retries, minimal DB roundtrips
-- **Simplicity:** In-memory rate limiter, event publisher for observability, clear agent trace, single-file run
+- **Latency:** Async endpoints, agent tool retries, minimal DB roundtrips(TODO)
+- **Simplicity:** In-memory rate limiter, event publisher for observability, clear agent trace, single-file run(TODO)
 - **Security:** API key, PII redaction in logs, input validation
 
 ## Trade-offs
-- **In-memory rate limiter**: Simpler, but not horizontally scalable (see TODO for Redis option)
-- **Event publisher to stdout**: Good for demo and local dev, but not a real message bus (see TODO for Kafka integration)
+- **In-memory rate limiter**: Simpler, but not horizontally scalable
+- **Event publisher to stdout**: Good for demo and local dev, but not a real message bus
 - **SQLite**: Easy local setup, not for high concurrency
 - **No external LLM**: Deterministic agent for demo, easy to test
 
@@ -130,6 +130,11 @@ curl -X POST http://localhost:8000/payments/decide \
   -H 'X-API-Key: test-api-key' \
   -H 'Content-Type: application/json' \
   -d '{"customerId": "c_123", "amount": 125.50, "currency": "USD", "payeeId": "p_789", "idempotencyKey": "uuid-1"}'
+```
+
+### Get Metrics
+```sh
+curl http://localhost:8000/metrics
 ```
 
 ## Performance

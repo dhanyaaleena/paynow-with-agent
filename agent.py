@@ -1,12 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from models import Customer, PaymentDecisionEnum
+from models import Customer, PaymentDecisionEnum, AgentTraceStep
 from typing import List, Dict, Any
-from pydantic import ValidationError
 import uuid
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # make request id available in all logs
 
 
 async def retry_tool(tool_func, *args, max_retries=2, fallback=None, **kwargs):
@@ -56,35 +55,37 @@ async def agent_decide(
         amount: float,
         currency: str,
         payee_id: str) -> dict:
-    agent_trace = []
-    # Input validation
-    if amount <= 0:
-        return {
-            "decision": "block",
-            "reasons": ["invalid_amount"],
-            "user_display": ["Amount must be positive."],
-            "agent_trace": [{"step": "plan", "detail": "Invalid amount"}]
-        }
+    agent_trace: List[AgentTraceStep] = []
     agent_trace.append(
-        {"step": "plan", "detail": "Check balance, risk, and limits"})
+        AgentTraceStep(
+            step="plan",
+            detail="Check balance, risk, and limits"))
+    # use async gather to get balance and risk signals
     balance = await retry_tool(get_balance, db, customer_id, max_retries=2, fallback=0.0)
     agent_trace.append(
-        {"step": "tool:getBalance", "detail": f"balance={balance:.2f}"})
+        AgentTraceStep(
+            step="tool:getBalance",
+            detail=f"balance={
+                balance:.2f}"
+        ))
     risk = await retry_tool(get_risk_signals, db, customer_id, max_retries=2, fallback={"recent_disputes": 0, "device_change": False})
     agent_trace.append(
-        {
-            "step": "tool:getRiskSignals",
-            "detail": f"recent_disputes={
+        AgentTraceStep(
+            step="tool:getRiskSignals",
+            detail=f"recent_disputes={
                 risk['recent_disputes']}, device_change={
-                risk['device_change']}"})
+                risk['device_change']}"
+        ))
     reasons = []
     user_display = []
     if balance < amount:
         decision = PaymentDecisionEnum.block
         reasons.append("insufficient_balance")
         user_display.append("Insufficient balance to complete payment.")
-        agent_trace.append({"step": "tool:recommend",
-                            "detail": "block due to insufficient balance"})
+        agent_trace.append(
+            AgentTraceStep(
+                step="tool:recommend",
+                detail="block due to insufficient balance"))
     elif risk["recent_disputes"] > 0 or amount > 10000:
         decision = PaymentDecisionEnum.review
         if risk["recent_disputes"] > 0:
@@ -96,21 +97,27 @@ async def agent_decide(
             user_display.append(
                 "Amount exceeds daily threshold. Manual review required.")
         agent_trace.append(
-            {"step": "tool:recommend", "detail": "route to manual review"})
+            AgentTraceStep(
+                step="tool:recommend",
+                detail="route to manual review"))
     else:
         decision = PaymentDecisionEnum.allow
         agent_trace.append(
-            {"step": "tool:recommend", "detail": "allow payment"})
+            AgentTraceStep(
+                step="tool:recommend",
+                detail="allow payment"))
 
     # Create case for review/block decisions
     if decision in [PaymentDecisionEnum.review, PaymentDecisionEnum.block]:
         case_id = await retry_tool(create_case, db, customer_id, payee_id, amount, decision.value, reasons, max_retries=2, fallback="case_failed")
         agent_trace.append(
-            {"step": "tool:createCase", "detail": f"case_id={case_id}"})
+            AgentTraceStep(
+                step="tool:createCase",
+                detail=f"case_id={case_id}"))
 
     return {
         "decision": decision.value,
         "reasons": reasons,
         "user_display": user_display,
-        "agent_trace": agent_trace
+        "agent_trace": [s.model_dump() for s in agent_trace]
     }
