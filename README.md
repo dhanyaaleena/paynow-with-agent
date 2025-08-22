@@ -1,5 +1,53 @@
 # PayNow + Agent Assist
 
+A minimal FastAPI service that decides whether to allow, review, or block a payment. It uses:
+- A token-bucket rate limiter per customer to protect the API
+- Idempotency keys to safely retry the same request
+- An agent (deterministic) that gathers balance and risk signals, makes a decision, and logs an agentTrace
+- Atomic DB updates (balance, payment, idempotency key) in one commit
+- Event publishing after commit (payment.decided or payment.failed)
+- Metrics endpoint for quick visibility
+
+In short: the API receives a payment request, rate limits it, checks if we’ve already seen the same request (idempotency), calls the “agent” to compute a decision, atomically persists the result (and deducts balance on allow), publishes an event, and returns a structured response with reasons and an agent trace.
+
+## Sample Evaluation Test Cases
+These examples show the kinds of scenarios the agent handles. More cases are available in `tests/integration/eval_test_cases.json`.
+
+- Small, clean payment (should allow):
+```json
+{
+  "customerId": "c_100",
+  "amount": 100.0,
+  "currency": "USD",
+  "payeeId": "p_789",
+  "idempotencyKey": "sample-allow-1"
+}
+```
+
+- Customer with recent disputes (should review):
+```json
+{
+  "customerId": "c_123",
+  "amount": 75.0,
+  "currency": "USD",
+  "payeeId": "p_789",
+  "idempotencyKey": "sample-review-1"
+}
+```
+
+- Large amount with insufficient balance (should block):
+```json
+{
+  "customerId": "c_123",
+  "amount": 15000.0,
+  "currency": "USD",
+  "payeeId": "p_789",
+  "idempotencyKey": "sample-block-1"
+}
+```
+
+More examples and the expected outcomes can be found in `tests/integration/eval_test_cases.json`.
+
 ## How to Run Locally
 
 ## Run (Docker)
