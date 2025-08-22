@@ -2,13 +2,15 @@ version: '3.8'
 
 services:
   paynow-api:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     ports:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
     volumes:
-      - .:/app
+      - ..:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/metrics"]
       interval: 30s

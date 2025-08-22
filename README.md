@@ -1,22 +1,25 @@
 # PayNow + Agent Assist
 
 ## How to Run Locally
+
+## Run (Docker)
+
+You can start the API using Docker or Docker Compose:
+
+- Using Docker Compose (recommended):
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+## Run using uvicorn
 ```sh
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
-
-### Docker
-```sh
-# Build and run with Docker
-docker build -t paynow-api .
-docker run -p 8000:8000 paynow-api
-
-# Or use docker-compose
-docker-compose up --build
-```
+Then open `http://localhost:8000/docs` for api details.
 
 ## Architecture Diagram
 ```
@@ -46,6 +49,26 @@ docker-compose up --build
                 +-------------------+
 ```
 
+## Post - Payments Decide
+```sh
+curl -X POST http://localhost:8000/payments/decide \
+  -H 'X-API-Key: test-api-key' \
+  -H 'Content-Type: application/json' \
+  -d '{"customerId": "c_123", "amount": 125.50, "currency": "USD", "payeeId": "p_789", "idempotencyKey": "uuid-1"}'
+```
+
+### Get - Metrics
+```sh
+curl http://localhost:8000/metrics
+```
+### Running Evaluation Locally
+```sh
+# Run basic evaluation
+python run_eval.py
+
+# Run CI evaluation with threshold checking
+python ci_eval.py
+```
 ## Database Schema
 
 ### customers
@@ -100,30 +123,6 @@ docker-compose up --build
 - **Event Types:**
   - `payment.decided`: Emitted on successful payment decision
   - `payment.failed`: Emitted on error/exception
-- **Event Format Example:**
-```json
-{
-  "event_type": "payment.decided",
-  "event_id": "evt_00000001",
-  "timestamp": "2024-06-20T12:34:56.789Z",
-  "data": {
-    "payment_id": 123,
-    "customer_id": "c_123",
-    "payee_id": "p_789",
-    "amount": 125.5,
-    "currency": "USD",
-    "decision": "allow",
-    "reasons": [],
-    "request_id": "req_abc123",
-    "agent_trace": [ ... ],
-    "user_display": [ ... ]
-  },
-  "metadata": {
-    "source": "paynow-api",
-    "version": "1.0"
-  }
-}
-```
 
 ## What Was Optimized
 - **Latency:** Async endpoints, agent tool retries, minimal DB roundtrips
@@ -136,18 +135,6 @@ docker-compose up --build
 - **SQLite**: Easy local setup, not for high concurrency
 - **No external LLM**: Deterministic agent for demo, easy to test
 
-## Post Payments Decide
-```sh
-curl -X POST http://localhost:8000/payments/decide \
-  -H 'X-API-Key: test-api-key' \
-  -H 'Content-Type: application/json' \
-  -d '{"customerId": "c_123", "amount": 125.50, "currency": "USD", "payeeId": "p_789", "idempotencyKey": "uuid-1"}'
-```
-
-### Get Metrics
-```sh
-curl http://localhost:8000/metrics
-```
 
 ## Performance
 - p95 latency tracked in /metrics
@@ -165,7 +152,7 @@ curl http://localhost:8000/metrics
 - Agent trace returned in API response
 
 ## Agent
-- Tools: getBalance, getRiskSignals, recommend
+- Tools: get_balance, get_risk_signals, create_case
 - Retries/guardrails: max 2 retries per tool, fallback values
 - Plan and tool calls shown in agentTrace
 - No external LLM required
@@ -250,7 +237,7 @@ paynow-with-agent/
 ## CI/CD Pipeline
 
 ### GitHub Actions Workflow
-The project includes a comprehensive CI/CD pipeline in `.github/workflows/ci.yml` that runs on every push to `main` and pull request:
+The project includes a CI pipeline in `.github/workflows/ci.yml` that runs on every push to `main` and pull request:
 
 1. **Unit Tests** (`test_api.py`): Tests API functionality, idempotency, rate limiting, and edge cases
 2. **Agent Evaluation** (`ci_eval.py`): Validates agent decision-making accuracy
@@ -260,15 +247,6 @@ The CI pipeline enforces minimum accuracy thresholds:
 - **Decision Accuracy**: ≥95% (agent makes correct allow/review/block decisions)
 - **Reasons Accuracy**: ≥85% (agent identifies correct risk factors)
 - **Overall Accuracy**: ≥85% (combined decision and reasons accuracy)
-
-### Running Evaluation Locally
-```sh
-# Run basic evaluation
-python run_eval.py
-
-# Run CI evaluation with threshold checking
-python ci_eval.py
-```
 
 ### Test Coverage
 - **Unit Tests**: 7 test cases covering API functionality
