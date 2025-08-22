@@ -12,7 +12,7 @@ You can start the API using Docker or Docker Compose:
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-- Or Using uvicornL
+- Or Using uvicorn
 ```sh
 python3 -m venv venv
 source venv/bin/activate
@@ -62,12 +62,15 @@ curl -X POST http://localhost:8000/payments/decide \
 curl http://localhost:8000/metrics
 ```
 ### Running Evaluation Locally
-```sh
-# Run basic evaluation
-python run_eval.py
+Evaluation script is executed in the CI pipleine :
+Checkout in Github Actions: https://github.com/dhanyaaleena/paynow-with-agent/actions
+sample run: https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/17149409999
 
-# Run CI evaluation with threshold checking
-python ci_eval.py
+```sh
+# Alternatively run basic evaluation in local
+python -m tests.integration.run_eval.py
+
+
 ```
 ## Database Schema
 
