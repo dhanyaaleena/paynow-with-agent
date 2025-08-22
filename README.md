@@ -13,9 +13,7 @@ In short: the API receives a payment request, rate limits it, checks if we’ve 
 
 ## How to Run Locally
 
-## Run (Docker)
-
-You can start the API using Docker or Docker Compose:
+You can start the API using Docker Compose:
 
 - Using Docker Compose (recommended):
 
@@ -326,10 +324,13 @@ Link : https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/1714928980
 <img width="2778" height="1564" alt="image" src="https://github.com/user-attachments/assets/73771012-029c-487e-8a7a-6b90d3721445" />
 
 - Postman API testing:
-
+decide:
 <img width="1430" height="1520" alt="image" src="https://github.com/user-attachments/assets/8e530d71-27bf-4036-bba6-1c7cd2bfc4e7" />
 
 <img width="1464" height="1492" alt="image" src="https://github.com/user-attachments/assets/db8dad33-4f6d-4449-8751-d58314f4c2a3" />
+
+metrics:
+<img width="1376" height="1244" alt="image" src="https://github.com/user-attachments/assets/0ab7b4a1-0a73-48b5-afc6-9475b4c78811" />
 
 
 
