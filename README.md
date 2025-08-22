@@ -253,6 +253,13 @@ The CI pipeline enforces minimum accuracy thresholds:
 - **Agent Evaluation**: 7 test cases covering business logic scenarios
 - **CI Pipeline**: Automated testing on every code change
 
+### Screenshots:
+- CI pipeline run:
+<img width="2830" height="848" alt="image" src="https://github.com/user-attachments/assets/6344aa5d-918c-410f-88bb-3772d377a646" />
+
+- Test Cases executed:
+<img width="2856" height="1516" alt="image" src="https://github.com/user-attachments/assets/ce516eee-5a97-40e1-a44d-50743c901975" />
+
 
 ## TODOs
 - [ ] Frontend demo 
