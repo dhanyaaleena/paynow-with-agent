@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 import uuid
 import logging
 import asyncio
+from app.services.cache import risk_signals_cache
 
 logger = logging.getLogger(__name__) 
 
@@ -26,6 +27,9 @@ async def get_balance(db: AsyncSession, customer_id: str) -> float:
 
 async def get_risk_signals(
         db: AsyncSession, customer_id: str) -> Dict[str, Any]:
+    cached = await risk_signals_cache.get(f"risk:{customer_id}")
+    if cached is not None:
+        return cached
     # Simulate risk signals (in real life, fetch from risk service)
     # For demo: recent_disputes = 2 if customer_id ends with '3',
     # device_change = True if ends with '9'
@@ -35,7 +39,10 @@ async def get_risk_signals(
 
     recent_disputes = 2 if base_customer_id.endswith('3') or customer_id.endswith('3') else 0
     device_change = base_customer_id.endswith('9') or customer_id.endswith('9')
-    return {"recent_disputes": recent_disputes, "device_change": device_change}
+    result = {"recent_disputes": recent_disputes, "device_change": device_change}
+    # Cache for a short TTL
+    await risk_signals_cache.set(f"risk:{customer_id}", result, ttl_seconds=60)
+    return result
 
 
 async def create_case(

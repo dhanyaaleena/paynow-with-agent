@@ -191,15 +191,18 @@ More examples and the expected outcomes can be found in `tests/integration/eval_
 - Deterministic agent (no external LLM) for reliable tests; less flexible than ML-driven policies
 - In-process metrics (basic p95);
 
-## Performance
-- p95 latency tracked in /metrics
-- Async DB and agent tools
-- Pre-validation of input
+## Performance (p95)
+- Pre-validation short-circuits: reject invalid amount and unauthorized requests early
+- Idempotency short-circuit: immediate return on duplicates (no extra DB work)
+- Async tools: balance + risk fetched concurrently (asyncio.gather)
+- Minimized DB calls: single transaction for balance update (when allowed), payment insert, and idempotency insert; single commit
+- Lightweight in-memory metrics
+- In-memory caching: short TTL(60s for simplicity) cache for risk signals to avoid repeated lookups within a burst window
 
-## Security
-- API key required (X-API-Key)
-- PII redacted in logs (customerId)
-- Input validation on payment fields
+## Security (PII and Auth)
+- PII redaction: customerId masked in request logs; requestId included for traceability
+- Auth: all endpoints (including /metrics) require `X-API-Key`
+- Separation of concerns: `reasons` (system) vs `user_display` (user-facing)
 
 ## Observability
 - Logs include requestId for traceability
