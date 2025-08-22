@@ -129,7 +129,7 @@ class AgentEvaluator:
             test_data = json.load(f)
         
         test_cases = test_data["test_cases"]
-        print(f"📋 Loaded {len(test_cases)} test cases")
+        print(f"Loaded {len(test_cases)} test cases")
 
         # Setup customers for each test case
         async with AsyncSessionLocal() as session:
