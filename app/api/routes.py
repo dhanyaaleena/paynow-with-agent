@@ -264,9 +264,10 @@ async def decide_payment(
 
 
 @router.get("/metrics")
-def get_metrics():
+def get_metrics(api_key: str = Depends(get_api_key)):
     """
     Returns in-memory metrics: total requests, decision counts, and p95 latency.
+    Requires X-API-Key.
     """
     # Calculate p95 latency
     lats = sorted(metrics["latencies"])

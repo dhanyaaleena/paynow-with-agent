@@ -70,7 +70,7 @@ curl -X POST http://localhost:8000/payments/decide \
 
 ### Get - Metrics
 ```sh
-curl http://localhost:8000/metrics
+curl -H "X-API-Key: test-api-key" http://localhost:8000/metrics
 ```
 ### Running Evaluation Locally
 Evaluation script is executed in the CI pipleine :
@@ -181,7 +181,7 @@ More examples and the expected outcomes can be found in `tests/integration/eval_
 - Simple input validation: negative/zero amounts are blocked (invalid_amount); API key required via `X-API-Key`
 
 ## What Was Optimized
-- Latency: minimized DB round-trips; concurrent tool calls (asyncio.gather) for balance + risk
+- Latency: concurrent tool calls (asyncio.gather) for balance + risk
 - Simplicity: deterministic agent, SQLite, in-memory metrics, straightforward models
 - Security: API key check, PII redaction, clear validation, idempotency
 
