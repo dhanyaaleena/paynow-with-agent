@@ -4,28 +4,26 @@ import uuid
 import time
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import Payment, IdempotencyKey, PaymentDecisionEnum, Customer, PaymentRequest, AgentTraceStep, PaymentDecisionResponse
-from agent import agent_decide
+from app.core.models import Payment, IdempotencyKey, PaymentDecisionEnum, Customer, PaymentRequest, AgentTraceStep, PaymentDecisionResponse
+from app.core.agent import agent_decide
 import json
 import logging
-from db import AsyncSessionLocal
-from rate_limiter import rate_limiter
-from event_publisher import event_publisher
+from app.core.db import AsyncSessionLocal
+from app.services.rate_limiter import rate_limiter
+from app.services.event_publisher import event_publisher
 
 # Configure logging
 logger = logging.getLogger("paynow")
 
-# Create router
 router = APIRouter()
 
-# --- In-memory metrics (to be replaced with persistent/accurate version) ---
+# In-memory metrics (to be replaced with persistent)
 metrics = {
     "total_requests": 0,
     "decision_counts": {"allow": 0, "review": 0, "block": 0},
     "latencies": [],  # store last 100 latencies for p95
 }
 
-# --- API Key Security ---
 API_KEY = "test-api-key"  # In production, use env var or secret manager
 
 
@@ -40,8 +38,6 @@ def get_api_key(x_api_key: str = Header(...)):
             detail="Invalid API Key")
     return x_api_key
 
-# Database dependency
-
 async def get_db():
     """
     Dependency that provides an async SQLAlchemy session for DB operations.
@@ -49,7 +45,7 @@ async def get_db():
     async with AsyncSessionLocal() as db:
         yield db
 
-# --- Helpers ---
+#Helpers
 
 def _redact_customer_id(customer_id: str) -> str:
     return customer_id[:2] + "***" if len(customer_id) > 2 else "***"
@@ -125,43 +121,45 @@ async def _persist_atomic_and_publish(
     final_user_display = list(user_display)
     final_agent_trace = list(agent_trace)
 
-    # Begin atomic transaction for balance update + payment + idempotency
-    async with db.begin():
-        if final_decision == PaymentDecisionEnum.allow.value:
-            cust_stmt = select(Customer).where(Customer.id == payment.customerId).with_for_update()
-            cust_result = await db.execute(cust_stmt)
-            customer = cust_result.scalar_one_or_none()
-            if not customer or customer.balance < payment.amount:
-                final_decision = PaymentDecisionEnum.block.value
-                final_reasons = ["insufficient_balance"]
-                final_user_display = ["Insufficient balance to complete payment."]
-                final_agent_trace.append({
-                    "step": "tool:recommend",
-                    "detail": "block due to insufficient balance (concurrent)"
-                })
-            else:
-                customer.balance -= payment.amount
+    # Use existing transaction for balance update + payment + idempotency
+    if final_decision == PaymentDecisionEnum.allow.value:
+        cust_stmt = select(Customer).where(Customer.id == payment.customerId).with_for_update()
+        cust_result = await db.execute(cust_stmt)
+        customer = cust_result.scalar_one_or_none()
+        if not customer or customer.balance < payment.amount:
+            final_decision = PaymentDecisionEnum.block.value
+            if "insufficient_balance" not in final_reasons:
+                final_reasons.append("insufficient_balance")
+            if "Insufficient balance to complete payment." not in final_user_display:
+                final_user_display.append("Insufficient balance to complete payment.")
+            final_agent_trace.append({
+                "step": "tool:recommend",
+                "detail": "block due to insufficient balance (concurrent)"
+            })
+        else:
+            customer.balance -= payment.amount
 
-        payment_obj = Payment(
-            customer_id=payment.customerId,
-            payee_id=payment.payeeId,
-            amount=payment.amount,
-            currency=payment.currency,
-            decision=final_decision,
-            reasons=",".join(final_reasons),
-            agent_trace=json.dumps(final_agent_trace),
-            request_id=request_id,
-            idempotency_key=payment.idempotencyKey,
-        )
-        db.add(payment_obj)
-        await db.flush()
+    payment_obj = Payment(
+        customer_id=payment.customerId,
+        payee_id=payment.payeeId,
+        amount=payment.amount,
+        currency=payment.currency,
+        decision=final_decision,
+        reasons=",".join(final_reasons),
+        agent_trace=json.dumps(final_agent_trace),
+        request_id=request_id,
+        idempotency_key=payment.idempotencyKey,
+    )
+    db.add(payment_obj)
+    await db.flush()
 
-        idem_obj = IdempotencyKey(
-            customer_id=payment.customerId,
-            idempotency_key=payment.idempotencyKey,
-            payment_id=payment_obj.id,
-        )
-        db.add(idem_obj)
+    idem_obj = IdempotencyKey(
+        customer_id=payment.customerId,
+        idempotency_key=payment.idempotencyKey,
+        payment_id=payment_obj.id,
+    )
+    db.add(idem_obj)
+    await db.commit()
 
     # After commit, publish event
     await event_publisher.publish_payment_decided(
@@ -191,8 +189,6 @@ def _build_response(decision: str, reasons: List[str], agent_trace: List[dict], 
         requestId=request_id,
     )
 
-# --- Endpoints ---
-
 @router.post("/payments/decide", response_model=PaymentDecisionResponse)
 async def decide_payment(
     payment: PaymentRequest,
@@ -214,36 +210,36 @@ async def decide_payment(
             detail="Rate limit exceeded. Maximum 5 requests per second per customer.")
 
     try:
-        # Input validation
+        # input validation
         if payment.amount <= 0:
             return _invalid_amount_response(request_id)
 
-        # Redact customerId for logs
+        #Redact customerId for logs
         redacted_customer_id = _redact_customer_id(payment.customerId)
         logger.info(
             f"Incoming payment request: customerId={redacted_customer_id}, amount={payment.amount}, payeeId={payment.payeeId}, idempotencyKey={payment.idempotencyKey}")
 
-        # Idempotency check
+        #Idempotency check
         existing_payment = await _find_idempotent_payment(db, payment.customerId, payment.idempotencyKey)
         if existing_payment:
             return _response_from_existing(existing_payment, start)
 
-        # Run agent logic
+        #Run agent
         agent_result = await _run_agent(db, payment)
         decision = agent_result["decision"]
         reasons = agent_result["reasons"]
         user_display = agent_result.get("user_display", [])
         agent_trace = agent_result["agent_trace"]
 
-        # Atomic persist (balance + payment + idempotency) and publish
+        #Atomic persist (balance + payment + idempotency) and publish event
         decision, reasons, user_display, agent_trace, _payment_obj = await _persist_atomic_and_publish(
             db, payment, decision, reasons, agent_trace, user_display, request_id
         )
 
-        # Build response and update metrics
+        #build response and update metrics
         return _build_response(decision, reasons, agent_trace, user_display, request_id, start)
     except Exception as e:
-        # Publish payment.failed event
+        #Publish payment.failed event
         await event_publisher.publish_payment_failed(
             customer_id=payment.customerId,
             payee_id=payment.payeeId,

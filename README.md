@@ -8,6 +8,16 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+### Docker
+```sh
+# Build and run with Docker
+docker build -t paynow-api .
+docker run -p 8000:8000 paynow-api
+
+# Or use docker-compose
+docker-compose up --build
+```
+
 ## Architecture Diagram
 ```
 +--------+      +-------------------+      +-----------------+
@@ -126,7 +136,7 @@ uvicorn main:app --reload
 - **SQLite**: Easy local setup, not for high concurrency
 - **No external LLM**: Deterministic agent for demo, easy to test
 
-## Sample cURL
+## Post Payments Decide
 ```sh
 curl -X POST http://localhost:8000/payments/decide \
   -H 'X-API-Key: test-api-key' \
@@ -163,13 +173,19 @@ curl http://localhost:8000/metrics
 ```text
 1. REQUEST RECEIVED
   ↓
+1a. RATE LIMITER (Token Bucket per customerId)
+  └── CHECK allowance (5 req/sec)
+  ↓
 2. IDEMPOTENCY CHECK
   ├── READ payments (check if exists)
   └── READ idempotency_keys (check if exists)
   ↓
 3. IF NEW REQUEST:
   ├── AGENT LOGIC
-  │   └── READ customers (get balance)
+  │   ├── READ customers (get balance)
+  │   ├── FETCH risk signals
+  │   ├── MAKE decision (allow / review / block)
+  │   └── IF decision in {review, block}: CREATE CASE
   │
   ├── DECISION MADE
   │   └── UPDATE customers (if allow: deduct balance)
@@ -180,16 +196,88 @@ curl http://localhost:8000/metrics
   └── STORE IDEMPOTENCY
       └── INSERT idempotency_keys
   ↓
-4. RESPONSE SENT
+4. COMMIT TRANSACTION
+  ↓
+5. EVENT PUBLISHER
+  ├── payment.decided (on success)
+  └── payment.failed (on error)
+  ↓
+6. RESPONSE SENT
 ```
 
+## Project Structure
+
+
+```
+paynow-with-agent/
+├── app/                    # Main application code
+│   ├── api/               # API-related modules
+│   │   ├── routes.py      # FastAPI routes and endpoints
+│   │   └── __init__.py
+│   ├── core/              # Core business logic
+│   │   ├── agent.py       # Agent decision logic
+│   │   ├── models.py      # Database models
+│   │   ├── db.py          # Database configuration
+│   │   └── __init__.py
+│   ├── services/          # Business services
+│   │   ├── rate_limiter.py
+│   │   ├── event_publisher.py
+│   │   └── __init__.py
+│   ├── utils/             # Utilities
+│   │   ├── logging_config.py
+│   │   └── __init__.py
+│   └── __init__.py
+├── tests/                 # Test files
+│   ├── test_api.py        # Unit tests
+│   ├── integration/       # Integration tests
+│   │   ├── run_eval.py    # Agent evaluation script
+│   │   ├── ci_eval.py     # CI evaluation wrapper
+│   │   ├── eval_test_cases.json
+│   │   └── __init__.py
+│   └── __init__.py
+├── scripts/               # Utility scripts
+│   ├── seed_customers.py
+│   ├── clear_db.py
+│   └── __init__.py
+├── docker/                # Docker-related files
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── .github/               # GitHub Actions CI/CD
+├── main.py                # Application entry point
+├── requirements.txt
+└── README.md
+```
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+The project includes a comprehensive CI/CD pipeline in `.github/workflows/ci.yml` that runs on every push to `main` and pull request:
+
+1. **Unit Tests** (`test_api.py`): Tests API functionality, idempotency, rate limiting, and edge cases
+2. **Agent Evaluation** (`ci_eval.py`): Validates agent decision-making accuracy
+
+### Evaluation Thresholds
+The CI pipeline enforces minimum accuracy thresholds:
+- **Decision Accuracy**: ≥95% (agent makes correct allow/review/block decisions)
+- **Reasons Accuracy**: ≥85% (agent identifies correct risk factors)
+- **Overall Accuracy**: ≥85% (combined decision and reasons accuracy)
+
+### Running Evaluation Locally
+```sh
+# Run basic evaluation
+python run_eval.py
+
+# Run CI evaluation with threshold checking
+python ci_eval.py
+```
+
+### Test Coverage
+- **Unit Tests**: 7 test cases covering API functionality
+- **Agent Evaluation**: 7 test cases covering business logic scenarios
+- **CI Pipeline**: Automated testing on every code change
+
+
 ## TODOs
-- [ ] Redis-backed rate limiter for distributed scale
-- [ ] WebSocket/event publish for payment.decided
-- [ ] More robust input validation and error handling
-- [ ] CI/CD pipeline (GitHub Actions)
-- [ ] Frontend demo (optional)
-
-
-
-autopep8 --in-place --aggressive --aggressive agent.py
+- [ ] Frontend demo 
+- [ ] Implement Redis for better caching
+- [ ] Use cases for event publisher(use kafka)
+- [ ] Use LLM integration insted of simulation

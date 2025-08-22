@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
-from db import AsyncSessionLocal, init_db
+from app.core.db import AsyncSessionLocal, init_db
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-from api import router
+from app.api.routes import router
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.requests import Request as StarletteRequest
-from logging_config import configure_logging, request_id_var
+from app.utils.logging_config import configure_logging, request_id_var
+from scripts.seed_customers import seed
 
 # Configure logging with requestId support
 configure_logging()
@@ -17,6 +18,7 @@ logger = logging.getLogger("paynow")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await seed()
     yield
 
 app = FastAPI(lifespan=lifespan)

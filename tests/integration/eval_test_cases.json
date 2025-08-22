@@ -1,0 +1,119 @@
+{
+  "test_cases": [
+    {
+      "id": "test_case_1",
+      "description": "Small payment with sufficient balance for customer ending with '3' (c_123) - should review, reason is recent_disputes",
+      "input": {
+        "customerId": "c_123",
+        "amount": 50.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_1"
+      },
+      "expected": {
+        "decision": "review",
+        "reasons": ["recent_disputes"]
+      }
+    },
+    {
+      "id": "test_case_2",
+      "description": "Large payment (>10000) with insufficient balance for customer ending with '3' (c_123) - should block, reasons include insufficient_balance, recent_disputes, and amount_above_daily_threshold",
+      "input": {
+        "customerId": "c_123",
+        "amount": 15000.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_2"
+      },
+      "expected": {
+        "decision": "block",
+        "reasons": ["insufficient_balance", "recent_disputes", "amount_above_daily_threshold"]
+      }
+    },
+    {
+      "id": "test_case_3",
+      "description": "Customer ending with '9' (c_789) triggers device_change, but no disputes and amount < 10000 - should review, reason is recent_disputes",
+      "input": {
+        "customerId": "c_789",
+        "amount": 500.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_3"
+      },
+      "expected": {
+        "decision": "review",
+        "reasons": ["recent_disputes"]
+      }
+    },
+    {
+      "id": "test_case_4",
+      "description": "Insufficient balance for customer ending with '3' (c_123) - should block, reasons include insufficient_balance and recent_disputes",
+      "input": {
+        "customerId": "c_123",
+        "amount": 2000.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_4"
+      },
+      "expected": {
+        "decision": "block",
+        "reasons": ["insufficient_balance", "recent_disputes"]
+      }
+    },
+    {
+      "id": "test_case_5",
+      "description": "Negative amount for customer ending with '3' (c_123) - should block, reason is invalid_amount (risk signals not checked)",
+      "input": {
+        "customerId": "c_123",
+        "amount": -10.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_5"
+      },
+      "expected": {
+        "decision": "block",
+        "reasons": ["invalid_amount"]
+      }
+    },
+    {
+      "id": "test_case_6",
+      "description": "Customer ending with '3' (c_123) with disputes and large amount, but insufficient balance - should block, reasons include insufficient_balance, recent_disputes, and amount_above_daily_threshold",
+      "input": {
+        "customerId": "c_123",
+        "amount": 15000.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_6"
+      },
+      "expected": {
+        "decision": "block",
+        "reasons": ["insufficient_balance", "recent_disputes", "amount_above_daily_threshold"]
+      }
+    },
+    {
+      "id": "test_case_7",
+      "description": "Customer with no device change, sufficient balance, and no recent disputes - should allow",
+      "input": {
+        "customerId": "c_100",
+        "amount": 100.0,
+        "currency": "USD",
+        "payeeId": "p_789",
+        "idempotencyKey": "eval_test_case_7"
+      },
+      "expected": {
+        "decision": "allow",
+        "reasons": []
+      }
+    }
+  ],
+  "metadata": {
+    "description": "Evaluation test cases for PayNow agent",
+    "version": "1.0",
+    "total_cases": 7,
+    "notes": {
+      "amount_threshold": "10000 (not 100)",
+      "risk_signals": "recent_disputes=2 if customer_id ends with '3' or '9', device_change=true if ends with '9'",
+      "balance": "Test customer has 1000.0 balance; c_100 is a clean user with sufficient balance and no risk signals."
+    }
+  }
+}

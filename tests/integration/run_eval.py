@@ -3,14 +3,19 @@
 Evaluation script for PayNow agent
 Runs test cases and calculates accuracy metrics
 """
+import sys
+import os
+# Add project root to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
 import asyncio
 import json
 import time
 from typing import Dict, Any
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-from db import AsyncSessionLocal, init_db
-from models import Customer
+from app.core.db import AsyncSessionLocal, init_db
+from app.core.models import Customer
 from main import app
 
 
@@ -22,19 +27,20 @@ class AgentEvaluator:
 
     async def setup_test_environment(self):
         """Setup test environment with required customer data"""
-        print("🔧 Setting up test environment...")
+        print("Setting up test environment")
         await init_db()
 
         async with AsyncSessionLocal() as session:
             # Clear existing test data
             await session.execute(text("DELETE FROM customers WHERE id LIKE 'c_123_%'"))
             await session.execute(text("DELETE FROM customers WHERE id LIKE 'c_789_%'"))
+            await session.execute(text("DELETE FROM customers WHERE id LIKE 'c_100_%'"))
 
             # Add test customers with balance for evaluation tests
             # We'll create customers dynamically for each test case
             await session.commit()
 
-        print(f"✅ Test environment ready")
+        print(f"Test environment ready")
 
     def run_test_case(self, test_case: Dict[str, Any]) -> Dict[str, Any]:
         """Run a single test case against the API"""
@@ -113,14 +119,15 @@ class AgentEvaluator:
             "description": expected.get("description", "")
         }
 
-    async def run_evaluation(self) -> Dict[str, Any]:
-        """Run the complete evaluation"""
-        print("🚀 Starting agent evaluation...")
-
+    async def run_evaluation(self) -> int:
+        """Run all test cases and calculate accuracy"""
+        print("Starting agent evaluation...")
+        
         # Load test cases
-        with open("eval_test_cases.json", "r") as f:
+        test_cases_path = os.path.join(os.path.dirname(__file__), "eval_test_cases.json")
+        with open(test_cases_path, "r") as f:
             test_data = json.load(f)
-
+        
         test_cases = test_data["test_cases"]
         print(f"📋 Loaded {len(test_cases)} test cases")
 
@@ -156,7 +163,7 @@ class AgentEvaluator:
             evaluation = self.evaluate_decision(result)
             results.append(evaluation)
 
-            status = "✅ PASS" if evaluation["passed"] else "❌ FAIL"
+            status = "PASS" if evaluation["passed"] else "FAIL"
             print(
                 f"{status} Test {
                     test_case['id']}: {
@@ -194,7 +201,7 @@ class AgentEvaluator:
 
         # Print summary
         print("\n" + "=" * 50)
-        print("📊 EVALUATION RESULTS")
+        print("EVALUATION RESULTS")
         print("=" * 50)
         print(f"Total Tests: {len(results)}")
         print(f"Valid Tests: {len(valid_results)}")
@@ -221,9 +228,8 @@ class AgentEvaluator:
         with open("eval_results.json", "w") as f:
             json.dump(evaluation_results, f, indent=2)
 
-        print(f"\n📄 Detailed results saved to eval_results.json")
+        print(f"\n Detailed results saved to eval_results.json")
 
-        # Return exit code based on accuracy
         return 0 if overall_accuracy >= 0.8 else 1
 
 

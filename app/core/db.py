@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
+from app.core.models import Base
 
 DATABASE_URL = "sqlite+aiosqlite:///./paynow.db"
 

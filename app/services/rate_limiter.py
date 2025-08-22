@@ -28,20 +28,20 @@ class TokenBucketRateLimiter:
 
             tokens, last_refill = self.buckets[customer_id]
 
-            # Calculate time since last refill
+            #calculate time since last refill
             time_passed = current_time - last_refill
 
-            # Refill tokens based on time passed (only add whole tokens)
+            #refill tokens based on time passed (only add whole tokens)
             tokens_to_add = int(time_passed * self.tokens_per_second)
             tokens = min(self.tokens_per_second, tokens + tokens_to_add)
 
-            # Check if we have tokens available
+            #check if we have tokens available
             if tokens >= 1:
                 tokens -= 1
                 self.buckets[customer_id] = (tokens, current_time)
                 return True
             else:
-                # Update last refill time even if no tokens available
+                #Update last refill time even if no tokens available
                 self.buckets[customer_id] = (tokens, current_time)
                 logger.warning(
                     f"Rate limit exceeded for customer {customer_id}")
@@ -55,15 +55,14 @@ class TokenBucketRateLimiter:
         tokens, last_refill = self.buckets[customer_id]
         current_time = time.time()
 
-        # Calculate time since last refill
+        #Calculate time since last re fill
         time_passed = current_time - last_refill
 
-        # Refill tokens based on time passed (only add whole tokens)
+        # refill tokens based on time passed
         tokens_to_add = int(time_passed * self.tokens_per_second)
         current_tokens = min(self.tokens_per_second, tokens + tokens_to_add)
 
         return (current_tokens, last_refill)
 
 
-# Global rate limiter instance
 rate_limiter = TokenBucketRateLimiter(tokens_per_second=5)

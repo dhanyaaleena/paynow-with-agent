@@ -26,21 +26,7 @@ class EventPublisher:
     ) -> bool:
         """
         Publish a payment.decided event
-        
-        Args:
-            payment_id: Database payment ID
-            customer_id: Customer identifier
-            payee_id: Payee identifier
-            amount: Payment amount
-            currency: Payment currency
-            decision: Payment decision (allow/review/block)
-            reasons: List of system reasons
-            request_id: Request identifier
-            agent_trace: Agent execution trace
-            user_display: User-facing messages
-            
-        Returns:
-            bool: True if event was published successfully
+        Returns bool: True if event was published successfully
         """
         try:
             event = {
@@ -91,6 +77,7 @@ class EventPublisher:
     ) -> bool:
         """
         Publish a payment.failed event for failed payments
+        Returns bool: True if event was published successfully
         """
         try:
             event = {
@@ -123,5 +110,4 @@ class EventPublisher:
             logger.error(f"Failed to publish payment.failed event: {e}")
             return False
 
-# Global event publisher instance
 event_publisher = EventPublisher()
