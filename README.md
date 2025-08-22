@@ -255,10 +255,20 @@ The CI pipeline enforces minimum accuracy thresholds:
 
 ### Screenshots:
 - CI pipeline run:
+Link : https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/17149289805
 <img width="2830" height="848" alt="image" src="https://github.com/user-attachments/assets/6344aa5d-918c-410f-88bb-3772d377a646" />
 
-- Test Cases executed:
+- Unit Test Cases executed:
 <img width="2856" height="1516" alt="image" src="https://github.com/user-attachments/assets/ce516eee-5a97-40e1-a44d-50743c901975" />
+
+- Eval Test Cases executed:
+<img width="2802" height="1464" alt="image" src="https://github.com/user-attachments/assets/34334a64-b2a0-4416-82ca-bf724d71e5b0" />
+
+- Docker container in execution:
+<img width="1202" height="568" alt="image" src="https://github.com/user-attachments/assets/34b31f23-7db3-41d8-875d-4a4d55e8a5c0" />
+
+- Swagger docs in local:
+<img width="2778" height="1564" alt="image" src="https://github.com/user-attachments/assets/73771012-029c-487e-8a7a-6b90d3721445" />
 
 
 ## TODOs
