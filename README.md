@@ -10,43 +10,6 @@ A minimal FastAPI service that decides whether to allow, review, or block a paym
 
 In short: the API receives a payment request, rate limits it, checks if we’ve already seen the same request (idempotency), calls the “agent” to compute a decision, atomically persists the result (and deducts balance on allow), publishes an event, and returns a structured response with reasons and an agent trace.
 
-## Sample Evaluation Test Cases
-These examples show the kinds of scenarios the agent handles. More cases are available in `tests/integration/eval_test_cases.json`.
-
-- Small, clean payment (should allow):
-```json
-{
-  "customerId": "c_100",
-  "amount": 100.0,
-  "currency": "USD",
-  "payeeId": "p_789",
-  "idempotencyKey": "sample-allow-1"
-}
-```
-
-- Customer with recent disputes (should review):
-```json
-{
-  "customerId": "c_123",
-  "amount": 75.0,
-  "currency": "USD",
-  "payeeId": "p_789",
-  "idempotencyKey": "sample-review-1"
-}
-```
-
-- Large amount with insufficient balance (should block):
-```json
-{
-  "customerId": "c_123",
-  "amount": 15000.0,
-  "currency": "USD",
-  "payeeId": "p_789",
-  "idempotencyKey": "sample-block-1"
-}
-```
-
-More examples and the expected outcomes can be found in `tests/integration/eval_test_cases.json`.
 
 ## How to Run Locally
 
@@ -118,8 +81,45 @@ sample run: https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/17149
 # Alternatively run basic evaluation in local
 python -m tests.integration.run_eval.py
 
-
 ```
+
+## Sample Evaluation Test Cases
+These examples show the kinds of scenarios the agent handles. More cases are available in `tests/integration/eval_test_cases.json`.
+
+- Small, clean payment (should allow):
+```json
+{
+  "customerId": "c_100",
+  "amount": 100.0,
+  "currency": "USD",
+  "payeeId": "p_789",
+  "idempotencyKey": "sample-allow-1"
+}
+```
+
+- Customer with recent disputes (should review):
+```json
+{
+  "customerId": "c_123",
+  "amount": 75.0,
+  "currency": "USD",
+  "payeeId": "p_789",
+  "idempotencyKey": "sample-review-1"
+}
+```
+
+- Large amount with insufficient balance (should block):
+```json
+{
+  "customerId": "c_123",
+  "amount": 15000.0,
+  "currency": "USD",
+  "payeeId": "p_789",
+  "idempotencyKey": "sample-block-1"
+}
+```
+
+More examples and the expected outcomes can be found in `tests/integration/eval_test_cases.json`.
 ## Database Schema
 
 ### customers
@@ -320,6 +320,13 @@ Link : https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/1714928980
 
 - Swagger docs in local:
 <img width="2778" height="1564" alt="image" src="https://github.com/user-attachments/assets/73771012-029c-487e-8a7a-6b90d3721445" />
+
+- Postman API testing:
+
+<img width="1430" height="1520" alt="image" src="https://github.com/user-attachments/assets/8e530d71-27bf-4036-bba6-1c7cd2bfc4e7" />
+
+<img width="1464" height="1492" alt="image" src="https://github.com/user-attachments/assets/db8dad33-4f6d-4449-8751-d58314f4c2a3" />
+
 
 
 ## TODOs
