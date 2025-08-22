@@ -2,11 +2,11 @@
   "summary": {
     "total_tests": 7,
     "valid_tests": 7,
-    "passed": 5,
-    "failed": 2,
-    "decision_accuracy": 0.7142857142857143,
-    "reasons_accuracy": 0.7142857142857143,
-    "overall_accuracy": 0.7142857142857143
+    "passed": 7,
+    "failed": 0,
+    "decision_accuracy": 1.0,
+    "reasons_accuracy": 1.0,
+    "overall_accuracy": 1.0
   },
   "results": [
     {
@@ -14,23 +14,31 @@
       "passed": true,
       "decision_correct": true,
       "reasons_correct": true,
-      "actual_decision": "allow",
-      "expected_decision": "allow",
-      "actual_reasons": [],
-      "expected_reasons": [],
+      "actual_decision": "review",
+      "expected_decision": "review",
+      "actual_reasons": [
+        "recent_disputes"
+      ],
+      "expected_reasons": [
+        "recent_disputes"
+      ],
       "description": ""
     },
     {
       "test_id": "test_case_2",
-      "passed": false,
-      "decision_correct": false,
-      "reasons_correct": false,
+      "passed": true,
+      "decision_correct": true,
+      "reasons_correct": true,
       "actual_decision": "block",
-      "expected_decision": "review",
+      "expected_decision": "block",
       "actual_reasons": [
-        "insufficient_balance"
+        "insufficient_balance",
+        "recent_disputes",
+        "amount_above_daily_threshold"
       ],
       "expected_reasons": [
+        "insufficient_balance",
+        "recent_disputes",
         "amount_above_daily_threshold"
       ],
       "description": ""
@@ -55,10 +63,16 @@
       "passed": true,
       "decision_correct": true,
       "reasons_correct": true,
-      "actual_decision": "allow",
-      "expected_decision": "allow",
-      "actual_reasons": [],
-      "expected_reasons": [],
+      "actual_decision": "block",
+      "expected_decision": "block",
+      "actual_reasons": [
+        "insufficient_balance",
+        "recent_disputes"
+      ],
+      "expected_reasons": [
+        "insufficient_balance",
+        "recent_disputes"
+      ],
       "description": ""
     },
     {
@@ -69,10 +83,10 @@
       "actual_decision": "block",
       "expected_decision": "block",
       "actual_reasons": [
-        "insufficient_balance"
+        "invalid_amount"
       ],
       "expected_reasons": [
-        "insufficient_balance"
+        "invalid_amount"
       ],
       "description": ""
     },
@@ -84,27 +98,26 @@
       "actual_decision": "block",
       "expected_decision": "block",
       "actual_reasons": [
-        "invalid_amount"
+        "insufficient_balance",
+        "recent_disputes",
+        "amount_above_daily_threshold"
       ],
       "expected_reasons": [
-        "invalid_amount"
+        "insufficient_balance",
+        "recent_disputes",
+        "amount_above_daily_threshold"
       ],
       "description": ""
     },
     {
       "test_id": "test_case_7",
-      "passed": false,
-      "decision_correct": false,
-      "reasons_correct": false,
-      "actual_decision": "block",
-      "expected_decision": "review",
-      "actual_reasons": [
-        "insufficient_balance"
-      ],
-      "expected_reasons": [
-        "recent_disputes",
-        "amount_above_daily_threshold"
-      ],
+      "passed": true,
+      "decision_correct": true,
+      "reasons_correct": true,
+      "actual_decision": "allow",
+      "expected_decision": "allow",
+      "actual_reasons": [],
+      "expected_reasons": [],
       "description": ""
     }
   ]
