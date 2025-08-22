@@ -80,6 +80,16 @@ async def _find_idempotent_payment(db: AsyncSession, customer_id: str, idempoten
     return result.scalar_one_or_none()
 
 
+def _user_display_from_reasons(reasons: List[str]) -> List[str]:
+    mapping = {
+        "insufficient_balance": "Insufficient balance to complete payment.",
+        "recent_disputes": "Your account has recent disputes. Manual review required.",
+        "amount_above_daily_threshold": "Amount exceeds daily threshold. Manual review required.",
+        "invalid_amount": "Amount must be positive."
+    }
+    return [mapping[r] for r in reasons if r in mapping]
+
+
 def _response_from_existing(existing_payment: Payment, start_time: float) -> PaymentDecisionResponse:
     reasons = existing_payment.reasons.split(
         ",") if existing_payment.reasons else []
@@ -90,7 +100,7 @@ def _response_from_existing(existing_payment: Payment, start_time: float) -> Pay
     return PaymentDecisionResponse(
         decision=decision,
         reasons=reasons,
-        user_display=[],
+        user_display=_user_display_from_reasons(reasons),
         agentTrace=[AgentTraceStep(**step) for step in agent_trace],
         requestId=existing_payment.request_id,
     )

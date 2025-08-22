@@ -175,17 +175,21 @@ python -m tests.integration.run_eval.py
   - `payment.decided`: Emitted on successful payment decision
   - `payment.failed`: Emitted on error/exception
 
+## Defense-in-Depth
+- Redacted PII in logs: customerId masked in request logs; requestId added to correlate
+- Separated system reasons vs user display text: API returns both `reasons` and `user_display`
+- Simple input validation: negative/zero amounts are blocked (invalid_amount); API key required via `X-API-Key`
+
 ## What Was Optimized
-- **Latency:** Async endpoints, agent tool retries, minimal DB roundtrips
-- **Simplicity:** In-memory rate limiter, event publisher for observability, clear agent trace, single-file run
-- **Security:** API key, PII redaction in logs, input validation
+- Latency: minimized DB round-trips; concurrent tool calls (asyncio.gather) for balance + risk
+- Simplicity: deterministic agent, SQLite, in-memory metrics, straightforward models
+- Security: API key check, PII redaction, clear validation, idempotency
 
 ## Trade-offs
-- **In-memory rate limiter**: Simpler, but not horizontally scalable
-- **Event publisher to stdout**: Good for demo and local dev, but not a real message bus
-- **SQLite**: Easy local setup, not for high concurrency
-- **No external LLM**: Deterministic agent for demo, easy to test
-
+- In-memory rate limiter for simplicity; suitable for single-instance dev. Trade-off: not distributed-safe (suggest Redis option for prod)
+- SQLite for local development; easy to run, limited concurrency at scale
+- Deterministic agent (no external LLM) for reliable tests; less flexible than ML-driven policies
+- In-process metrics (basic p95);
 
 ## Performance
 - p95 latency tracked in /metrics
@@ -324,6 +328,7 @@ Link : https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/1714928980
 
 ## TODOs
 - [ ] Frontend demo 
-- [ ] Implement Redis for better caching
 - [ ] Use cases for event publisher(use kafka)
 - [ ] Use LLM integration insted of simulation
+- [ ] Redis-backed rate limiter option
+- [ ] event retries, idempotency cleanup
