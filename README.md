@@ -12,7 +12,7 @@ You can start the API using Docker or Docker Compose:
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-## Run using uvicorn
+- Or Using uvicornL
 ```sh
 python3 -m venv venv
 source venv/bin/activate
