@@ -1,40 +1,56 @@
-# PayNow + Agent Assist(Backend Leaning)
+# PayNow + Agent Assist — Fullstack
 
-A minimal FastAPI service that decides whether to allow, review, or block a payment. It uses:
-- A token-bucket rate limiter per customer to protect the API
-- Idempotency keys to safely retry the same request
-- An agent (deterministic) that gathers balance and risk signals, makes a decision, and logs an agentTrace
-- Atomic DB updates (balance, payment, idempotency key) in one commit
-- Event publishing after commit (payment.decided or payment.failed)
-- Metrics endpoint for quick visibility
+A production-minded slice of a banking/payments flow where a user initiates a payment and an agentic AI assists with checks and recommendations.  
+**Backend:** FastAPI, SQLite, agentic decision logic, observability, security, and eventing.  
+**Frontend:** Next.js, Zustand, Tailwind CSS — a modern dashboard for submitting and viewing payment decisions.
 
-In short: the API receives a payment request, rate limits it, checks if we’ve already seen the same request (idempotency), calls the “agent” to compute a decision, atomically persists the result (and deducts balance on allow), publishes an event, and returns a structured response with reasons and an agent trace.
+---
 
+## Quick Start
 
-## How to Run Locally
+### Prerequisites
+- Node.js 18+
+- Python 3.9+
+- Docker (optional, for easy backend setup)
 
-You can start the API using Docker Compose:
+### 1. Start the Backend
 
-- Using Docker Compose (recommended):
-
-```bash
+**With Docker Compose (recommended):**
+```sh
+cd backend
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-- Or Using uvicorn
+**Or manually:**
 ```sh
+cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
-Then open `http://localhost:8000/docs` for api details.
+- API docs: http://localhost:8000/docs
 
-## Architecture Diagram
+### 2. Start the Frontend
+
+```sh
+cd frontend
+npm install
+# Create .env.local with:
+# NEXT_PUBLIC_API_URL=http://localhost:8000
+# NEXT_PUBLIC_API_KEY=test-api-key
+npm run dev
+```
+- App: http://localhost:3000
+
+---
+
+## Architecture
+
 ```
 +--------+      +-------------------+      +-----------------+
 | Client | ---> | FastAPI Backend   | ---> | SQLite DB       |
-+--------+      |  /payments/decide |      | (SQLAlchemy ORM)|
++--------+      |  /api/decide      |      | (SQLAlchemy ORM)|
                 |  /metrics         |      +-----------------+
                 +-------------------+
                         |
@@ -58,288 +74,114 @@ Then open `http://localhost:8000/docs` for api details.
                 +-------------------+
 ```
 
-## Post - Payments Decide
+---
+
+## API Endpoints
+
+- **POST `/api/decide`**: Submit payment decision
+- **GET `/api/decide`**: Get last 20 decisions
+- **GET `/metrics`**: Observability metrics
+
+**Sample cURL:**
 ```sh
-curl -X POST http://localhost:8000/payments/decide \
+curl -X POST http://localhost:8000/api/decide \
   -H 'X-API-Key: test-api-key' \
   -H 'Content-Type: application/json' \
-  -d '{"customerId": "c_123", "amount": 125.50, "currency": "USD", "payeeId": "p_789", "idempotencyKey": "uuid-1"}'
+  -d '{"customerId": "c_123", "amount": 125.50, "currency": "INR", "payeeId": "p_789", "idempotencyKey": "uuid-1"}'
 ```
 
-### Get - Metrics
-```sh
-curl -H "X-API-Key: test-api-key" http://localhost:8000/metrics
-```
-### Running Evaluation Locally
-Evaluation script is executed in the CI pipleine :
-Checkout in Github Actions: https://github.com/dhanyaaleena/paynow-with-agent/actions
-sample run: https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/17149409999
+---
 
-```sh
-# Alternatively run basic evaluation in local
-python -m tests.integration.run_eval.py
+## Frontend Features
 
-```
+- **Submit Form:** Amount, payee, customerId → calls `/api/decide`
+- **Results Table:** Last 20 decisions, masked customerId, latency, timestamp
+- **Details Drawer:** Collapsible reasons + Agent Trace
+- **Accessibility:** Labeled inputs, keyboard navigation, ARIA, focus management
+- **Security:** Customer IDs masked as `c_***123`, no PII exposure
+- **Testing:** Jest + RTL test for drawer expansion and accessibility
+- **Performance:** Memoized row rendering, efficient state management
 
-## Sample Evaluation Test Cases
-These examples show the kinds of scenarios the agent handles. More cases are available in `tests/integration/eval_test_cases.json`.
+---
 
-- Small, clean payment (should allow):
-```json
-{
-  "customerId": "c_100",
-  "amount": 100.0,
-  "currency": "USD",
-  "payeeId": "p_789",
-  "idempotencyKey": "sample-allow-1"
-}
-```
+## Backend Features
 
-- Customer with recent disputes (should review):
-```json
-{
-  "customerId": "c_123",
-  "amount": 75.0,
-  "currency": "USD",
-  "payeeId": "p_789",
-  "idempotencyKey": "sample-review-1"
-}
-```
+- **Agentic Decision Logic:** Deterministic agent plans, calls tools, retries, and traces steps
+- **Idempotency:** Ensures safe retries with idempotencyKey
+- **Concurrency Safety:** Atomic DB transactions for balance and payments
+- **Rate Limiting:** 5 requests/sec per customerId (token bucket)
+- **Security:** API key required, PII redaction in logs
+- **Observability:** Logs with requestId, `/metrics` endpoint, event publishing
+- **Event Publisher:** Simulates Kafka by publishing events to stdout
 
-- Large amount with insufficient balance (should block):
-```json
-{
-  "customerId": "c_123",
-  "amount": 15000.0,
-  "currency": "USD",
-  "payeeId": "p_789",
-  "idempotencyKey": "sample-block-1"
-}
-```
+---
 
-More examples and the expected outcomes can be found in `tests/integration/eval_test_cases.json`.
 ## Database Schema
 
-### customers
-| Column    | Type   | Description                |
-|-----------|--------|---------------------------|
-| id        | str    | Primary key (e.g., c_123) |
-| name      | str    | Customer name             |
-| balance   | float  | Current balance           |
+- **customers:** id, name, balance
+- **payees:** id, name
+- **payments:** id, customer_id, payee_id, amount, currency, decision, reasons, agent_trace, request_id, created_at, idempotency_key
+- **idempotency_keys:** id, customer_id, idempotency_key, payment_id, created_at
 
-### payees 
-| Column    | Type   | Description                |
-|-----------|--------|---------------------------|
-| id        | str    | Primary key (e.g., p_789) |
-| name      | str    | Payee name                |
+---
 
-> Note: Payees table exists for completeness but is not used in the current demo flow.
+## Testing
 
-### payments
-| Column          | Type   | Description                                  |
-|-----------------|--------|----------------------------------------------|
-| id              | int    | Primary key (auto-increment)                 |
-| customer_id     | str    | Foreign key to customers                     |
-| payee_id        | str    | Foreign key to payees                        |
-| amount          | float  | Payment amount                               |
-| currency        | str    | Currency code (e.g., USD)                    |
-| decision        | enum   | allow, review, block                         |
-| reasons         | str    | Comma-separated system reasons               |
-| agent_trace     | str    | JSON string of agent steps                   |
-| request_id      | str    | Unique request identifier                    |
-| created_at      | datetime | Timestamp                                  |
-| idempotency_key | str    | For idempotency (see previous answer)        |
+**Backend:**
+- `pytest` for unit and integration tests
+- Evaluation script: `python -m tests.integration.run_eval.py`
 
-### idempotency_keys
-| Column          | Type   | Description                                  |
-|-----------------|--------|----------------------------------------------|
-| id              | int    | Primary key (auto-increment)                 |
-| customer_id     | str    | Customer for this idempotency key            |
-| idempotency_key | str    | The idempotency key                          |
-| payment_id      | int    | Foreign key to payments                      |
-| created_at      | datetime | Timestamp                                  |
+**Frontend:**
+- `npm test` for Jest + React Testing Library
+- Coverage for drawer, accessibility, and integration
 
-## In-Memory Rate Limiter
-- **Type:** Token Bucket (5 requests/sec per customerId)
-- **Purpose:** Prevents abuse and enforces fair usage per customer.
-- **Implementation:** See `rate_limiter.py`. Used as a FastAPI dependency in the `/payments/decide` endpoint.
-- **Trade-offs:** Simple and fast, but not horizontally scalable (would need Redis or similar for distributed systems).
-- **Behavior:** If a customer exceeds 5 requests/sec, they receive a 429 error.
+---
 
-## Event Publisher (Simulated Kafka)
-- **Purpose:** Publishes `payment.decided` and `payment.failed` events to stdout to simulate event-driven architecture (e.g., Kafka).
-- **Implementation:** See `event_publisher.py`. Events are published after each payment decision or failure.
-- **Event Types:**
-  - `payment.decided`: Emitted on successful payment decision
-  - `payment.failed`: Emitted on error/exception
+## Security & Observability
 
-## Defense-in-Depth
-- Redacted PII in logs: customerId masked in request logs; requestId added to correlate
-- Separated system reasons vs user display text: API returns both `reasons` and `user_display`
-- Simple input validation: negative/zero amounts are blocked (invalid_amount); API key required via `X-API-Key`
+- **PII Redaction:** Masked customerId in logs and UI
+- **API Key:** Required for all endpoints
+- **Metrics:** `/metrics` endpoint for requests, decisions, p95 latency
+- **Agent Trace:** Returned in API response and visible in UI
 
-## What Was Optimized
-- Latency: concurrent tool calls (asyncio.gather) for balance + risk
-- Simplicity: deterministic agent, SQLite, in-memory metrics, straightforward models
-- Security: API key check, PII redaction, clear validation, idempotency
-
-## Trade-offs
-- In-memory rate limiter for simplicity; suitable for single-instance dev. Trade-off: not distributed-safe (suggest Redis option for prod)
-- SQLite for local development; easy to run, limited concurrency at scale
-- Deterministic agent (no external LLM) for reliable tests; less flexible than ML-driven policies
-- In-process metrics (basic p95);
-
-## Performance (p95)
-- Pre-validation short-circuits: reject invalid amount and unauthorized requests early
-- Idempotency short-circuit: immediate return on duplicates (no extra DB work)
-- Async tools: balance + risk fetched concurrently (asyncio.gather)
-- Minimized DB calls: single transaction for balance update (when allowed), payment insert, and idempotency insert; single commit
-- Lightweight in-memory metrics
-- In-memory caching: short TTL(60s for simplicity) cache for risk signals to avoid repeated lookups within a burst window
-
-## Security (PII and Auth)
-- PII redaction: customerId masked in request logs; requestId included for traceability
-- Auth: all endpoints (including /metrics) require `X-API-Key`
-- Separation of concerns: `reasons` (system) vs `user_display` (user-facing)
-
-## Observability
-- Logs include requestId for traceability
-- /metrics endpoint for requests, decisions, p95 latency
-- Agent trace returned in API response
-
-## Agent
-- Tools: get_balance, get_risk_signals, create_case
-- Retries/guardrails: max 2 retries per tool, fallback values
-- Plan and tool calls shown in agentTrace
-- No external LLM required
-
-```text
-1. REQUEST RECEIVED
-  ↓
-1a. RATE LIMITER (Token Bucket per customerId)
-  └── CHECK allowance (5 req/sec)
-  ↓
-2. IDEMPOTENCY CHECK
-  ├── READ payments (check if exists)
-  └── READ idempotency_keys (check if exists)
-  ↓
-3. IF NEW REQUEST:
-  ├── AGENT LOGIC
-  │   ├── READ customers (get balance)
-  │   ├── FETCH risk signals
-  │   ├── MAKE decision (allow / review / block)
-  │   └── IF decision in {review, block}: CREATE CASE
-  │
-  ├── DECISION MADE
-  │   └── UPDATE customers (if allow: deduct balance)
-  │
-  ├── STORE PAYMENT
-  │   └── INSERT payments
-  │
-  └── STORE IDEMPOTENCY
-      └── INSERT idempotency_keys
-  ↓
-4. COMMIT TRANSACTION
-  ↓
-5. EVENT PUBLISHER
-  ├── payment.decided (on success)
-  └── payment.failed (on error)
-  ↓
-6. RESPONSE SENT
-```
+---
 
 ## Project Structure
 
-
 ```
 paynow-with-agent/
-├── app/                    # Main application code
-│   ├── api/               # API-related modules
-│   │   ├── routes.py      # FastAPI routes and endpoints
-│   │   └── __init__.py
-│   ├── core/              # Core business logic
-│   │   ├── agent.py       # Agent decision logic
-│   │   ├── models.py      # Database models
-│   │   ├── db.py          # Database configuration
-│   │   └── __init__.py
-│   ├── services/          # Business services
-│   │   ├── rate_limiter.py
-│   │   ├── event_publisher.py
-│   │   └── __init__.py
-│   ├── utils/             # Utilities
-│   │   ├── logging_config.py
-│   │   └── __init__.py
-│   └── __init__.py
-├── tests/                 # Test files
-│   ├── test_api.py        # Unit tests
-│   ├── integration/       # Integration tests
-│   │   ├── run_eval.py    # Agent evaluation script
-│   │   ├── ci_eval.py     # CI evaluation wrapper
-│   │   ├── eval_test_cases.json
-│   │   └── __init__.py
-│   └── __init__.py
-├── scripts/               # Utility scripts
-│   ├── seed_customers.py
-│   ├── clear_db.py
-│   └── __init__.py
-├── docker/                # Docker-related files
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── .github/               # GitHub Actions CI/CD
-├── main.py                # Application entry point
-├── requirements.txt
-└── README.md
+├── backend/
+│   ├── app/...
+│   ├── tests/...
+│   ├── scripts/...
+│   ├── docker/...
+│   ├── main.py
+│   ├── requirements.txt
+│   └── README.md
+├── frontend/
+│   ├── src/components/...
+│   ├── src/store/...
+│   ├── src/services/...
+│   ├── src/types/...
+│   ├── README.md
+│   └── package.json
+└── README.md  # (this file)
 ```
-## CI/CD Pipeline
 
-### GitHub Actions Workflow
-The project includes a CI pipeline in `.github/workflows/ci.yml` that runs on every push to `main` and pull request:
+---
 
-1. **Unit Tests** (`test_api.py`): Tests API functionality, idempotency, rate limiting, and edge cases
-2. **Agent Evaluation** (`ci_eval.py`): Validates agent decision-making accuracy
+## Trade-offs & Future Enhancements
 
-### Evaluation Thresholds
-The CI pipeline enforces minimum accuracy thresholds:
-- **Decision Accuracy**: ≥95% (agent makes correct allow/review/block decisions)
-- **Reasons Accuracy**: ≥85% (agent identifies correct risk factors)
-- **Overall Accuracy**: ≥85% (combined decision and reasons accuracy)
+- **In-memory rate limiter:** Simple, not distributed (suggest Redis for prod)
+- **SQLite:** Easy for dev, limited concurrency
+- **Deterministic agent:** Reliable for tests, less flexible than ML
+- **Frontend:** Zustand for state, Tailwind for rapid UI, Headless UI for accessibility
 
-### Test Coverage
-- **Unit Tests**: 7 test cases covering API functionality
-- **Agent Evaluation**: 7 test cases covering business logic scenarios
-- **CI Pipeline**: Automated testing on every code change
+**Potential Improvements:**
+- Real-time updates (WebSocket)
+- Advanced filtering, export, dark mode
+- Redis-backed rate limiter
+- LLM integration for agent
+- Production-grade eventing (Kafka)
 
-### Screenshots:
-- CI pipeline run:
-Link : https://github.com/dhanyaaleena/paynow-with-agent/actions/runs/17149289805
-<img width="2830" height="848" alt="image" src="https://github.com/user-attachments/assets/6344aa5d-918c-410f-88bb-3772d377a646" />
-
-- Unit Test Cases executed:
-<img width="2856" height="1516" alt="image" src="https://github.com/user-attachments/assets/ce516eee-5a97-40e1-a44d-50743c901975" />
-
-- Eval Test Cases executed:
-<img width="2802" height="1464" alt="image" src="https://github.com/user-attachments/assets/34334a64-b2a0-4416-82ca-bf724d71e5b0" />
-
-- Docker container in execution:
-<img width="1202" height="568" alt="image" src="https://github.com/user-attachments/assets/34b31f23-7db3-41d8-875d-4a4d55e8a5c0" />
-
-- Swagger docs in local:
-<img width="2778" height="1564" alt="image" src="https://github.com/user-attachments/assets/73771012-029c-487e-8a7a-6b90d3721445" />
-
-- Postman API testing:
-decide:
-<img width="1430" height="1520" alt="image" src="https://github.com/user-attachments/assets/8e530d71-27bf-4036-bba6-1c7cd2bfc4e7" />
-
-<img width="1464" height="1492" alt="image" src="https://github.com/user-attachments/assets/db8dad33-4f6d-4449-8751-d58314f4c2a3" />
-
-metrics:
-<img width="1376" height="1244" alt="image" src="https://github.com/user-attachments/assets/0ab7b4a1-0a73-48b5-afc6-9475b4c78811" />
-
-
-
-## TODOs
-- [ ] Frontend demo 
-- [ ] Use cases for event publisher(use kafka)
-- [ ] Use LLM integration insted of simulation
-- [ ] Redis-backed rate limiter option
-- [ ] event retries, idempotency cleanup
+---

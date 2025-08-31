@@ -4,13 +4,14 @@ import uuid
 import time
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.models import Payment, IdempotencyKey, PaymentDecisionEnum, Customer, PaymentRequest, AgentTraceStep, PaymentDecisionResponse
+from app.core.models import Payment, IdempotencyKey, PaymentDecisionEnum, Customer, PaymentRequest, AgentTraceStep, PaymentDecisionResponse, RecentDecisionsResponse
 from app.core.agent import agent_decide
 import json
 import logging
 from app.core.db import AsyncSessionLocal
 from app.services.rate_limiter import rate_limiter
 from app.services.event_publisher import event_publisher
+from datetime import timezone
 
 # Configure logging
 logger = logging.getLogger("paynow")
@@ -62,12 +63,21 @@ def _update_metrics(decision: str, start_time: float) -> None:
 
 
 def _invalid_amount_response(request_id: str) -> PaymentDecisionResponse:
+    from datetime import datetime, timezone
+    now_utc = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     return PaymentDecisionResponse(
+        id=-1,
         decision="block",
         reasons=["invalid_amount"],
         user_display=["Amount must be positive."],
         agentTrace=[AgentTraceStep(step="plan", detail="Invalid amount")],
         requestId=request_id,
+        customerId="invalid",
+        maskedCustomerId="***",
+        payeeId="invalid",
+        amount=0.0,
+        latency=0.0,
+        createdAt=now_utc,
     )
 
 
@@ -91,18 +101,25 @@ def _user_display_from_reasons(reasons: List[str]) -> List[str]:
 
 
 def _response_from_existing(existing_payment: Payment, start_time: float) -> PaymentDecisionResponse:
-    reasons = existing_payment.reasons.split(
-        ",") if existing_payment.reasons else []
+    reasons = existing_payment.reasons.split(",") if existing_payment.reasons else []
     agent_trace = json.loads(existing_payment.agent_trace) if existing_payment.agent_trace else []
     decision = existing_payment.decision.value if hasattr(existing_payment.decision, 'value') else existing_payment.decision
     logger.info(f"Idempotent request, returning previous decision: {decision}")
+    latency = time.time() - start_time
     _update_metrics(decision, start_time)
     return PaymentDecisionResponse(
+        id=existing_payment.id,
         decision=decision,
         reasons=reasons,
         user_display=_user_display_from_reasons(reasons),
         agentTrace=[AgentTraceStep(**step) for step in agent_trace],
         requestId=existing_payment.request_id,
+        customerId=existing_payment.customer_id,
+        maskedCustomerId=_redact_customer_id(existing_payment.customer_id),
+        payeeId=existing_payment.payee_id,
+        amount=existing_payment.amount,
+        latency=latency,
+        createdAt=existing_payment.created_at.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z') if existing_payment.created_at else "",
     )
 
 
@@ -188,22 +205,31 @@ async def _persist_atomic_and_publish(
     return final_decision, final_reasons, final_user_display, final_agent_trace, payment_obj
 
 
-def _build_response(decision: str, reasons: List[str], agent_trace: List[dict], user_display: List[str], request_id: str, start_time: float) -> PaymentDecisionResponse:
+def _build_response(decision: str, reasons: List[str], agent_trace: List[dict], user_display: List[str], request_id: str, start_time: float, payment: PaymentRequest, payment_obj: Payment) -> PaymentDecisionResponse:
     logger.info(f"Decision: {decision}, reasons={reasons}")
+    latency = time.time() - start_time
     _update_metrics(decision, start_time)
     return PaymentDecisionResponse(
+        id=payment_obj.id,
         decision=decision,
         reasons=reasons,
         user_display=user_display,
         agentTrace=[AgentTraceStep(**step) for step in agent_trace],
         requestId=request_id,
+        customerId=payment.customerId,
+        maskedCustomerId=_redact_customer_id(payment.customerId),
+        payeeId=payment.payeeId,
+        amount=payment.amount,
+        latency=latency,
+        createdAt=payment_obj.created_at.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z') if payment_obj.created_at else "",
     )
 
-@router.post("/payments/decide", response_model=PaymentDecisionResponse)
+@router.post("/api/decide", response_model=PaymentDecisionResponse)
 async def decide_payment(
     payment: PaymentRequest,
     api_key: str = Depends(get_api_key),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    x_request_id: Optional[str] = Header(None, alias="X-Request-Id"),
 ):
     """
     Decide on a payment request by running agent logic, enforcing idempotency, concurrency safety, rate limiting, and logging.
@@ -211,7 +237,7 @@ async def decide_payment(
     Publishes events and updates metrics.
     """
     start = time.time()
-    request_id = f"req_{uuid.uuid4().hex[:8]}"
+    request_id = x_request_id or f"req_{uuid.uuid4().hex[:8]}"
 
     # Rate limiting check
     if not await rate_limiter.is_allowed(payment.customerId):
@@ -222,7 +248,11 @@ async def decide_payment(
     try:
         # input validation
         if payment.amount <= 0:
-            return _invalid_amount_response(request_id)
+            # For invalid amount, return latency as well
+            latency = time.time() - start
+            resp = _invalid_amount_response(request_id)
+            resp.latency = latency
+            return resp
 
         #Redact customerId for logs
         redacted_customer_id = _redact_customer_id(payment.customerId)
@@ -242,12 +272,12 @@ async def decide_payment(
         agent_trace = agent_result["agent_trace"]
 
         #Atomic persist (balance + payment + idempotency) and publish event
-        decision, reasons, user_display, agent_trace, _payment_obj = await _persist_atomic_and_publish(
+        decision, reasons, user_display, agent_trace, payment_obj = await _persist_atomic_and_publish(
             db, payment, decision, reasons, agent_trace, user_display, request_id
         )
 
         #build response and update metrics
-        return _build_response(decision, reasons, agent_trace, user_display, request_id, start)
+        return _build_response(decision, reasons, agent_trace, user_display, request_id, start, payment, payment_obj)
     except Exception as e:
         #Publish payment.failed event
         await event_publisher.publish_payment_failed(
@@ -262,6 +292,44 @@ async def decide_payment(
             f"[requestId={request_id}] Exception during payment decision")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.get("/api/decide", response_model=RecentDecisionsResponse)
+async def get_recent_decisions(
+    api_key: str = Depends(get_api_key),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns the last 20 payment decisions for display in the frontend table.
+    Requires X-API-Key.
+    """
+    try:
+        # Query last 20 payments ordered by creation time descending
+        stmt = select(Payment).order_by(Payment.created_at.desc()).limit(20)
+        result = await db.execute(stmt)
+        payments = result.scalars().all()
+        decisions = []
+        for payment in payments:
+            # Mask customer ID for security
+            masked_customer_id = _redact_customer_id(payment.customer_id)
+            
+            logger.info(f"Payment object createdAt: {payment.amount}, {payment.created_at}")
+            decisions.append({
+                "id": payment.id,
+                "decision": payment.decision.value if hasattr(payment.decision, 'value') else payment.decision,
+                "amount": payment.amount,
+                "currency": payment.currency,
+                "customerId": masked_customer_id,
+                "payeeId": payment.payee_id,
+                "createdAt": payment.created_at.isoformat()+"Z" if payment.created_at else "",
+                "requestId": payment.request_id,
+                "reasons": payment.reasons.split(",") if payment.reasons else [],
+                "agentTrace": json.loads(payment.agent_trace) if payment.agent_trace else []
+            })
+        
+        return {"decisions": decisions}
+    except Exception as e:
+        logger.exception("Error fetching recent decisions")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/metrics")
 def get_metrics(api_key: str = Depends(get_api_key)):

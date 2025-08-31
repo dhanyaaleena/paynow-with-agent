@@ -39,7 +39,7 @@ class Payment(Base):
     reasons = Column(String)  # Comma-separated reasons
     agent_trace = Column(String)  # JSON string
     request_id = Column(String, unique=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     idempotency_key = Column(String)
     __table_args__ = (
         UniqueConstraint(
@@ -55,7 +55,7 @@ class IdempotencyKey(Base):
     customer_id = Column(String)
     idempotency_key = Column(String)
     payment_id = Column(Integer, ForeignKey("payments.id"))
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     __table_args__ = (
         UniqueConstraint(
             'customer_id',
@@ -76,8 +76,30 @@ class AgentTraceStep(BaseModel):
     detail: str
 
 class PaymentDecisionResponse(BaseModel):
+    id: int
     decision: str  # allow | review | block
     reasons: List[str]
     user_display: List[str]
     agentTrace: List[AgentTraceStep]
     requestId: str
+    customerId: str
+    maskedCustomerId: str
+    payeeId: str
+    amount: float
+    latency: float
+    createdAt: str
+
+class DecisionListItem(BaseModel):
+    id: int
+    decision: str
+    amount: float
+    currency: str
+    customerId: str  # masked
+    payeeId: str
+    createdAt: str
+    requestId: str
+    reasons: List[str]
+    agentTrace: List[dict]
+
+class RecentDecisionsResponse(BaseModel):
+    decisions: List[DecisionListItem]

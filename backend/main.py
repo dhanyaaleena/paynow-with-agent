@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from app.core.db import AsyncSessionLocal, init_db
-from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from app.api.routes import router
 from fastapi.exceptions import RequestValidationError
@@ -9,6 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.requests import Request as StarletteRequest
 from app.utils.logging_config import configure_logging, request_id_var
 from scripts.seed_customers import seed
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging with requestId support
 configure_logging()
@@ -22,6 +22,15 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or specify frontend URL(s)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Exception handler for validation errors
 

@@ -61,7 +61,7 @@ class AgentEvaluator:
 
         try:
             response = self.client.post(
-                "/payments/decide",
+                "/api/decide",
                 json=payment_data,
                 headers=headers)
             return {
