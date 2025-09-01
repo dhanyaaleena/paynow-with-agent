@@ -73,14 +73,14 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Left Column - Payment Form */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:col-span-2">
             <PaymentForm />
           </div>
 
           {/* Right Column - Decision Table */}
-          <div>
+          <div className="lg:col-span-3">
             <DecisionTable />
           </div>
         </div>

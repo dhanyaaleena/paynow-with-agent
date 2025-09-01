@@ -127,7 +127,7 @@ export default function PaymentForm() {
             aria-describedby="amount-help"
           />
           <p id="amount-help" className="mt-1 text-sm text-gray-500">
-            Enter the payment amount in Rupees (must be greater than 0)
+            Enter the payment amount
           </p>
         </div>
 
