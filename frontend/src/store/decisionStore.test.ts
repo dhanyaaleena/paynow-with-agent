@@ -9,7 +9,7 @@ describe('decisionStore', () => {
       decision: 'allow',
       amount: 100,
       currency: 'INR',
-      customerId: 'c_***123',
+      customerId: 'c_***234',
       payeeId: 'p_789',
       createdAt: new Date().toISOString(),
       requestId: 'req_1',

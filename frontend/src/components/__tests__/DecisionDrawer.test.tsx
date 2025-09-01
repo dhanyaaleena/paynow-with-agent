@@ -12,8 +12,8 @@ const mockDecision = {
   decision: 'review' as const,
   amount: 1500.50,
   currency: 'USD',
-  customerId: 'c_123',
-  maskedCustomerId: 'c_***123',
+  customerId: 'c_123234',
+  maskedCustomerId: 'c_***234',
   payeeId: 'p_789',
   createdAt: '2025-08-29T15:30:00.000Z',
   requestId: 'req_abc123',
@@ -52,7 +52,7 @@ describe('DecisionDrawer', () => {
     expect(screen.getByText('REVIEW')).toBeInTheDocument()
     expect(screen.getByText('₹1,500.50')).toBeInTheDocument()
     // Removed USD check since currency is now always INR and not displayed
-    expect(screen.getByText('c_***123')).toBeInTheDocument()
+    expect(screen.getByText('c_***234')).toBeInTheDocument()
     expect(screen.getByText('p_789')).toBeInTheDocument()
   })
 

@@ -49,7 +49,14 @@ async def get_db():
 #Helpers
 
 def _redact_customer_id(customer_id: str) -> str:
-    return customer_id[:2] + "***" if len(customer_id) > 2 else "***"
+    if not customer_id:
+        return "***"
+    if len(customer_id) > 5:
+        return customer_id[:2] + "***" + customer_id[-3:]
+    elif len(customer_id) > 1:
+        return customer_id[0] + "***" + customer_id[-1]
+    else:
+        return "***"
 
 
 def _update_metrics(decision: str, start_time: float) -> None:

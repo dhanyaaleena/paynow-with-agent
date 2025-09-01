@@ -73,41 +73,41 @@ async def dummy_get_balance(db, customer_id):
 
 @pytest.mark.asyncio
 async def test_agent_decide_allow(monkeypatch):
-    balances = {"c_100": 1000.0}
-    risk_signals = {"c_100": {"recent_disputes": 0, "device_change": False}}
+    balances = {"c_100100": 1000.0}
+    risk_signals = {"c_100100": {"recent_disputes": 0, "device_change": False}}
     db = DummySession(balances, risk_signals)
     monkeypatch.setattr("app.core.agent.get_risk_signals", dummy_get_risk_signals)
     monkeypatch.setattr("app.core.agent.get_balance", dummy_get_balance)
-    result = await agent_decide(db, "c_100", 100.0, "USD", "p_789")
+    result = await agent_decide(db, "c_100100", 100.0, "USD", "p_789")
     assert result["decision"] == PaymentDecisionEnum.allow.value
     assert result["reasons"] == []
 
 @pytest.mark.asyncio
 async def test_agent_decide_block_insufficient_balance(monkeypatch):
-    balances = {"c_100": 50.0}
-    risk_signals = {"c_100": {"recent_disputes": 0, "device_change": False}}
+    balances = {"c_100100": 50.0}
+    risk_signals = {"c_100100": {"recent_disputes": 0, "device_change": False}}
     db = DummySession(balances, risk_signals)
     monkeypatch.setattr("app.core.agent.get_risk_signals", dummy_get_risk_signals)
     monkeypatch.setattr("app.core.agent.get_balance", dummy_get_balance)
-    result = await agent_decide(db, "c_100", 100.0, "USD", "p_789")
+    result = await agent_decide(db, "c_100100", 100.0, "USD", "p_789")
     assert result["decision"] == PaymentDecisionEnum.block.value
     assert "insufficient_balance" in result["reasons"]
 
 @pytest.mark.asyncio
 async def test_agent_decide_review_disputes(monkeypatch):
-    balances = {"c_123": 1000.0}
-    risk_signals = {"c_123": {"recent_disputes": 2, "device_change": False}}
+    balances = {"c_123123": 1000.0}
+    risk_signals = {"c_123123": {"recent_disputes": 2, "device_change": False}}
     db = DummySession(balances, risk_signals)
     monkeypatch.setattr("app.core.agent.get_risk_signals", dummy_get_risk_signals)
     monkeypatch.setattr("app.core.agent.get_balance", dummy_get_balance)
-    result = await agent_decide(db, "c_123", 100.0, "USD", "p_789")
+    result = await agent_decide(db, "c_123123", 100.0, "USD", "p_789")
     assert result["decision"] == PaymentDecisionEnum.review.value
     assert "recent_disputes" in result["reasons"]
 
 @pytest.mark.asyncio
 async def test_agent_decide_block_invalid_amount(monkeypatch):
-    balances = {"c_100": 1000.0}
-    risk_signals = {"c_100": {"recent_disputes": 0, "device_change": False}}
+    balances = {"c_100100": 1000.0}
+    risk_signals = {"c_100100": {"recent_disputes": 0, "device_change": False}}
     db = DummySession(balances, risk_signals)
     monkeypatch.setattr("app.core.agent.get_risk_signals", dummy_get_risk_signals)
     monkeypatch.setattr("app.core.agent.get_balance", dummy_get_balance)
@@ -116,6 +116,6 @@ async def test_agent_decide_block_invalid_amount(monkeypatch):
     if amount <= 0:
         result = {"decision": PaymentDecisionEnum.block.value, "reasons": ["invalid_amount"]}
     else:
-        result = await agent_decide(db, "c_100", amount, "USD", "p_789")
+        result = await agent_decide(db, "c_100100", amount, "USD", "p_789")
     assert result["decision"] == PaymentDecisionEnum.block.value
     assert "invalid_amount" in result["reasons"] or result["reasons"] == ["invalid_amount"]
