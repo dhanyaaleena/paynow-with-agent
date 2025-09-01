@@ -35,6 +35,7 @@ interface DecisionState {
   error: string | null;
   selectedDecision: DecisionListItem | null;
   isDrawerOpen: boolean;
+  showLatestDecision: boolean;
 
   // Actions
   updateFormData: (field: keyof PaymentRequest, value: string | number) => void;
@@ -48,6 +49,7 @@ interface DecisionState {
   setLatency: (requestId: string, latencyMs: number) => void;
   getLatency: (requestId: string) => number | undefined;
   addRecentDecision: (decision: any) => void;
+  setShowLatestDecision: (show: boolean) => void;
 }
 
 const initialFormData: PaymentRequest = {
@@ -67,6 +69,7 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
   error: null,
   selectedDecision: null,
   isDrawerOpen: false,
+  showLatestDecision: false,
 
   // Actions
   updateFormData: (field, value) =>
@@ -95,7 +98,8 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
   resetForm: () =>
     set({
       formData: initialFormData,
-      error: null
+      error: null,
+      showLatestDecision: false
     }),
 
   setLatency: (requestId, latencyMs) => {
@@ -110,6 +114,9 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
 
   addRecentDecision: (decision) =>
     set((state) => ({
-      recentDecisions: [decision, ...state.recentDecisions].slice(0, 20)
+      recentDecisions: [decision, ...state.recentDecisions].slice(0, 20),
+      showLatestDecision: true
     })),
+
+  setShowLatestDecision: (show) => set({ showLatestDecision: show }),
 }));

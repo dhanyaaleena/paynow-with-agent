@@ -16,8 +16,12 @@ export default function Home() {
   const { 
     error, 
     isLoading, 
-    setError 
+    setError,
+    recentDecisions,
+    showLatestDecision,
+    setShowLatestDecision
   } = useDecisionStore();
+  const latestDecision = recentDecisions[0];
 
   // Clear error after 5 seconds
   useEffect(() => {
@@ -73,6 +77,21 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Latest Decision Card */}
+        {showLatestDecision && latestDecision && (
+          <div className={`mb-8 p-4 rounded-lg border shadow-sm flex items-center space-x-4 ${getDecisionColor(latestDecision.decision)}`}>
+            {getDecisionIcon(latestDecision.decision)}
+            <div>
+              <div className="font-semibold">{latestDecision.decision.toUpperCase()}</div>
+              <div className="text-sm text-gray-700">
+                Amount: <span className="font-mono">₹{latestDecision.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                &nbsp;| Customer: <span className="font-mono">{latestDecision.maskedCustomerId || latestDecision.customerId}</span>
+                &nbsp;| {new Date(latestDecision.createdAt).toLocaleString('en-IN')}
+              </div>
+              <div className="text-xs text-gray-500">{latestDecision.reasons.join(', ')}</div>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Left Column - Payment Form */}
           <div className="space-y-6 lg:col-span-2">

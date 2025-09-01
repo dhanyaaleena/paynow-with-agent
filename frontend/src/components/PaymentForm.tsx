@@ -15,6 +15,7 @@ export default function PaymentForm() {
     resetForm,
     addRecentDecision,
     error,
+    setShowLatestDecision,
   } = useDecisionStore();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +64,7 @@ export default function PaymentForm() {
         createdAt: decision.createdAt,
       });
       resetForm();
+      setShowLatestDecision(true);
     } catch (error) {
       if (error instanceof ApiError) {
         setError(`Error ${error.status}: ${error.message}`);
@@ -101,7 +103,7 @@ export default function PaymentForm() {
             value={formData.customerId}
             onChange={(e) => handleInputChange('customerId', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-            placeholder="e.g., c_123"
+            placeholder="e.g., c_123123"
             required
             aria-describedby="customerId-help"
           />

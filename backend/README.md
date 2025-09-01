@@ -130,7 +130,7 @@ More examples and the expected outcomes can be found in `tests/integration/eval_
 ### customers
 | Column    | Type   | Description                |
 |-----------|--------|---------------------------|
-| id        | str    | Primary key (e.g., c_123) |
+| id        | str    | Primary key (e.g., c_123123) |
 | name      | str    | Customer name             |
 | balance   | float  | Current balance           |
 
