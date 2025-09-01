@@ -14,7 +14,7 @@ def run_evaluation():
     """Run the evaluation script and capture output"""
     try:
         result = subprocess.run(
-            ["python", "tests/integration/run_eval.py"], 
+            ["python", "backend/tests/integration/run_eval.py"], 
             capture_output=True, 
             text=True, 
             check=True,
