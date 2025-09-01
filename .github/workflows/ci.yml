@@ -62,4 +62,28 @@ jobs:
       run: |
         python backend/tests/integration/ci_eval.py
       continue-on-error: false
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm install
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test
     

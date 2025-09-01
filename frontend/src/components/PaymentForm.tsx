@@ -14,6 +14,7 @@ export default function PaymentForm() {
     setError,
     resetForm,
     addRecentDecision,
+    error,
   } = useDecisionStore();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,7 +85,11 @@ export default function PaymentForm() {
       <h2 className="text-2xl font-bold text-gray-900 mb-6">
         Submit Payment
       </h2>
-      
+      {error && (
+        <div role="alert" className="text-red-600 mb-2">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="customerId" className="block text-sm font-medium text-gray-700 mb-1">
