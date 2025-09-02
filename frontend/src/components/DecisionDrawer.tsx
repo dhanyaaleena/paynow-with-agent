@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useState, useRef } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useDecisionStore } from '../store/decisionStore';
 // DecisionListItem type is used in the component props
@@ -86,14 +86,14 @@ export default function DecisionDrawer() {
   };
 
   return (
-    <Transition.Root show={isDrawerOpen} as={Fragment}>
+    <Transition show={isDrawerOpen} as={Fragment}>
       <Dialog
         as="div"
         className="relative z-50"
         onClose={closeDrawer}
         initialFocus={closeButtonRef}
       >
-        <Transition.Child
+        <TransitionChild
           as={Fragment}
           enter="ease-in-out duration-300"
           enterFrom="opacity-0"
@@ -103,12 +103,12 @@ export default function DecisionDrawer() {
           leaveTo="opacity-0"
         >
           <div className="fixed inset-0 bg-black/40 transition-opacity" />
-        </Transition.Child>
+        </TransitionChild>
 
         <div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
             <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-              <Transition.Child
+              <TransitionChild
                 as={Fragment}
                 enter="transform transition ease-in-out duration-300"
                 enterFrom="translate-x-full"
@@ -117,14 +117,14 @@ export default function DecisionDrawer() {
                 leaveFrom="translate-x-0"
                 leaveTo="translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
+                <DialogPanel className="pointer-events-auto w-screen max-w-md">
                   <div className="flex h-full flex-col bg-white shadow-xl">
                     {/* Header */}
                     <div className="px-6 py-4 border-b border-gray-200">
                       <div className="flex items-center justify-between">
-                        <Dialog.Title className="text-lg font-medium text-gray-900">
+                        <DialogTitle className="text-lg font-medium text-gray-900">
                           Decision Details
-                        </Dialog.Title>
+                        </DialogTitle>
                         <button
                           ref={closeButtonRef}
                           type="button"
@@ -234,12 +234,12 @@ export default function DecisionDrawer() {
                       </CollapsibleSection>
                     </div>
                   </div>
-                </Dialog.Panel>
-              </Transition.Child>
+                </DialogPanel>
+              </TransitionChild>
             </div>
           </div>
         </div>
       </Dialog>
-    </Transition.Root>
+    </Transition>
   );
 }
