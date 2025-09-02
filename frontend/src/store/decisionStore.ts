@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PaymentRequest, PaymentDecisionResponse, DecisionListItem } from '../types/api';
+import { PaymentRequest, DecisionListItem } from '../types/api';
 
 const LATENCY_MAP_KEY = 'latencyMap';
 

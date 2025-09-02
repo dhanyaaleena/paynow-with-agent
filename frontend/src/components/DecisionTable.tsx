@@ -161,7 +161,6 @@ export default function DecisionTable() {
       second: '2-digit',
       hour12: true,
     });
-    console.log({"old":dateString, "new":value});
     return value;
   };
 

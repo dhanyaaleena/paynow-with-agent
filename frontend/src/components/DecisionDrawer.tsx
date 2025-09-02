@@ -61,16 +61,6 @@ export default function DecisionDrawer() {
   };
 
   const formatDate = (dateString: string) => {
-    console.log({"old":dateString, "new":new Date(dateString).toLocaleString('en-US', {
-        timeZone: "America/Los_Angeles",
-
-        year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })});
     return new Date(dateString).toLocaleString('en-US', {
     timeZone: "America/Los_Angeles",
       year: 'numeric',

@@ -51,7 +51,6 @@ export default function PaymentForm() {
         currency: 'INR', 
       };
       const requestId = generateRequestId();
-      const start = performance.now();
       const decision = await submitPaymentDecision(paymentData, requestId);
       const latency = typeof decision.latency === 'number' ? Math.round(decision.latency * 1000) : undefined;
       if (typeof latency === 'number') setLatency(requestId, latency);

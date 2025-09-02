@@ -15,11 +15,9 @@ import {
 export default function Home() {
   const { 
     error, 
-    isLoading, 
     setError,
     recentDecisions,
     showLatestDecision,
-    setShowLatestDecision
   } = useDecisionStore();
   const latestDecision = recentDecisions[0];
 
